@@ -11,8 +11,8 @@ class Model:
     def __init__(self):
         self.vgg = vgg16.Vgg16()
 
-        self.input_holder = tf.placeholder(tf.float32, [1, img_size, img_size, 3])
-        self.label_holder = tf.placeholder(tf.float32, [label_size*label_size, 2])
+        self.input_holder = tf.compat.v1.placeholder(tf.float32, [1, img_size, img_size, 3])
+        self.label_holder = tf.compat.v1.placeholder(tf.float32, [label_size*label_size, 2])
 
         self.sobel_fx, self.sobel_fy = self.sobel_filter()
 
@@ -118,7 +118,7 @@ class Model:
         #Get the contour term
         self.Prob_C = tf.reshape(self.Prob, [1, 208, 208, 2])
         self.Prob_Grad = tf.tanh(self.im_gradient(self.Prob_C))
-        self.Prob_Grad = tf.tanh(tf.reduce_sum(self.im_gradient(self.Prob_C), reduction_indices=3, keep_dims=True))
+        self.Prob_Grad = tf.tanh(tf.reduce_sum(self.im_gradient(self.Prob_C), reduction_indices=3, keepdims=True))
 
         self.label_C = tf.reshape(self.label_holder, [1, 208, 208, 2])
         self.label_Grad = tf.cast(tf.greater(self.im_gradient(self.label_C), self.contour_th), tf.float32)
@@ -132,15 +132,15 @@ class Model:
 
         #Loss Function
         self.Loss_Mean = self.C_IoU_LOSS \
-                         + tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=self.Score,
+                         + tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=self.Score,
                                                                                   labels=self.label_holder))
 
         self.correct_prediction = tf.equal(tf.argmax(self.Score,1), tf.argmax(self.label_holder, 1))
         self.accuracy = tf.reduce_mean(tf.cast(self.correct_prediction, tf.float32))
 
     def Conv_2d(self, input_, shape, stddev, name, padding='SAME'):
-        with tf.variable_scope(name) as scope:
-            W = tf.get_variable('W',
+        with tf.compat.v1.variable_scope(name) as scope:
+            W = tf.compat.v1.get_variable('W',
                                 shape=shape,
                                 initializer=tf.truncated_normal_initializer(stddev=stddev))
 
@@ -153,8 +153,8 @@ class Model:
 
     def Deconv_2d(self, input_, output_shape,
                   k_s=3, st_s=2, stddev=0.01, padding='SAME', name="deconv2d"):
-        with tf.variable_scope(name):
-            W = tf.get_variable('W',
+        with tf.compat.v1.variable_scope(name):
+            W = tf.compat.v1.get_variable('W',
                                 shape=[k_s, k_s, output_shape[3], input_.get_shape()[3]],
                                 initializer=tf.random_normal_initializer(stddev=stddev))
 
@@ -168,7 +168,7 @@ class Model:
 
     def Contrast_Layer(self, input_, k_s=3):
         h_s = k_s / 2
-        return tf.subtract(input_, tf.nn.avg_pool(tf.pad(input_, [[0, 0], [h_s, h_s], [h_s, h_s], [0, 0]], 'SYMMETRIC'),
+        return tf.subtract(input_, tf.nn.avg_pool2d(tf.pad(input_, [[0, 0], [np.int(h_s), np.int(h_s)], [np.int(h_s), np.int(h_s)], [0, 0]], 'SYMMETRIC'),
                                                   ksize=[1, k_s, k_s, 1], strides=[1, 1, 1, 1], padding='VALID'))
 
     def sobel_filter(self):
